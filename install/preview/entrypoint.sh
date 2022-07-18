@@ -147,6 +147,12 @@ run_telemetry(){
   kubectl create job gitpod-telemetry-init --from=cronjob/gitpod-telemetry
 }
 
+run_exit_message(){
+  echo "Visit https://www.gitpod.io/community-license?utm_source=local-preview for next steps on running a Production version of Gitpod"
+}
+
+trap 'run_exit_message 2>&1' EXIT INT HUP
+
 run_telemetry 2>&1 &
 
 /bin/k3s server --disable traefik \
