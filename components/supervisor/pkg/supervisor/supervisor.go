@@ -151,6 +151,10 @@ func (s IDEKind) String() string {
 
 // Run serves as main entrypoint to the supervisor.
 func Run(options ...RunOption) {
+	log.Info("Running Run!")
+
+	log.WithField("Andrea", "Tests").Warn("ANDREA TESTING LOGS")
+
 	exitCode := 0
 	defer handleExit(&exitCode)
 
@@ -348,7 +352,6 @@ func Run(options ...RunOption) {
 	if err != nil {
 		log.WithError(err).Fatal("failed to send test notification")
 	}
-	log.Info(result)
 
 	if result.Action == "Rebuild Now" {
 		gpPath, err := exec.LookPath("gp")
@@ -1549,6 +1552,8 @@ func socketActivationForDocker(ctx context.Context, wg *sync.WaitGroup, term *te
 
 func analyseConfigChanges(ctx context.Context, wscfg *Config, w analytics.Writer, cfgobs config.ConfigInterface) {
 	cfgc := cfgobs.Observe(ctx)
+
+	log.Info("Running analyseConfigChanges!")
 
 	var (
 		cfg     *gitpod.GitpodConfig

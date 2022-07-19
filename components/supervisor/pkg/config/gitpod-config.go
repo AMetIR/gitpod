@@ -6,15 +6,21 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
+	"github.com/gitpod-io/gitpod/common-go/log"
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+
+	"github.com/gitpod-io/gitpod/supervisor/api"
 )
 
 // ConfigInterface provides access to the gitpod config file.
@@ -161,13 +167,110 @@ func (service *ConfigService) poll(ctx context.Context) {
 	}
 }
 
+func runAsGitpodUser(cmd *exec.Cmd) *exec.Cmd {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	if cmd.SysProcAttr.Credential == nil {
+		cmd.SysProcAttr.Credential = &syscall.Credential{}
+	}
+	cmd.SysProcAttr.Credential.Uid = 33333
+	cmd.SysProcAttr.Credential.Gid = 33333
+	return cmd
+}
+
+type subscription struct {
+	// id      uint64
+	// channel chan *api.SubscribeResponse
+	// once    sync.Once
+	// closed  bool
+	// cancel  context.CancelFunc
+}
+
+type pendingNotification struct {
+	// message *api.SubscribeResponse
+	// responseChannel chan *api.NotifyResponse
+	// once            sync.Once
+	// closed          bool
+}
+
+type NotificationService struct {
+	// mutex                sync.Mutex
+	nextSubscriptionID   uint64
+	subscriptions        map[uint64]*subscription
+	nextNotificationID   uint64
+	pendingNotifications map[uint64]*pendingNotification
+
+	api.UnimplementedNotificationServiceServer
+}
+
+func NewNotificationService() *NotificationService {
+	return &NotificationService{
+		subscriptions:        make(map[uint64]*subscription),
+		pendingNotifications: make(map[uint64]*pendingNotification),
+	}
+}
+
 func (service *ConfigService) updateConfig() error {
 	service.cond.L.Lock()
 	defer service.cond.L.Unlock()
 
 	config, err := service.parse()
+	if err != nil {
+		panic(err)
+	}
 	service.config = config
 	service.cond.Broadcast()
+
+	// send notification
+
+	ctx := context.Background()
+	notificationService := NewNotificationService()
+
+	log.Info(notificationService.pendingNotifications)
+	log.Info(notificationService.subscriptions)
+	fmt.Println(notificationService.nextNotificationID)
+	fmt.Println(notificationService.nextSubscriptionID)
+
+	message := "The .gitpod.yml configuration file changed. Would you like to rebuild the workspace to test it?"
+	result, err := notificationService.Notify(ctx, &api.NotifyRequest{
+		Level:   api.NotifyRequest_INFO,
+		Message: message,
+		Actions: []string{"Rebuild Now"},
+	})
+	if err != nil {
+		log.WithError(err).Fatal("failed to send test notification")
+	}
+
+	if result.Action == "Rebuild Now" {
+		gpPath, err := exec.LookPath("gp")
+		if err != nil {
+			log.WithError(err).Fatal("failed to find gp cli")
+		}
+
+		repoUrl := "https://github.com/akosyakov/parcel-demo"
+		additionalContent := "eyJpbmRleC5qcyI6ImxhbGFsYSJ9"
+		rebuildUrl := fmt.Sprintf("%s/#additionalcontent/%s/%s", os.Getenv("GITPOD_WORKSPACE_URL"), additionalContent, repoUrl)
+
+		// type AddititionalContent struct {
+		// 	gitpodYml string
+		// }
+
+		// var ad AddititionalContent
+
+		gpCmd := exec.Command(gpPath, "preview", "--external", rebuildUrl)
+		gpCmd = runAsGitpodUser(gpCmd)
+		err = gpCmd.Start()
+		if err != nil {
+			log.WithError(err).Fatal("todo: handle error")
+		}
+		err = gpCmd.Process.Release()
+		if err != nil {
+			log.WithError(err).Fatal("todo: handle error")
+		}
+	}
+
+	service.log.WithField("config", service.config).Warn("ANDREA: gitpod config watcher: updated")
 
 	service.log.WithField("config", service.config).Debug("gitpod config watcher: updated")
 

@@ -17,7 +17,7 @@ import (
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
 )
 
-var log = logrus.NewEntry(logrus.StandardLogger())
+var logz = logrus.NewEntry(logrus.StandardLogger())
 
 func TestGitpodConfig(t *testing.T) {
 	tests := []struct {
@@ -88,7 +88,7 @@ vscode:
 			defer os.RemoveAll(tempDir)
 
 			locationReady := make(chan struct{})
-			configService := NewConfigService(tempDir+"/.gitpod.yml", locationReady, log)
+			configService := NewConfigService(tempDir+"/.gitpod.yml", locationReady, logz)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			close(locationReady)
