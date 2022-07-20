@@ -8,4 +8,4 @@ import "context"
 
 type NoOpClient struct{}
 
-func (c *NoOpClient) GetSignedUploadUrl(ctx context.Context) (string, error) { return "", nil }
+func (c *NoOpClient) UploadFile(ctx context.Context, filePath string) error { return nil }
