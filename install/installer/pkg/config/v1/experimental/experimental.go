@@ -61,6 +61,8 @@ type WorkspaceConfig struct {
 	CPULimits struct {
 		Enabled          bool              `json:"enabled"`
 		NodeCPUBandwidth resource.Quantity `json:"nodeBandwidth"`
+		Limit            resource.Quantity `json:"limit"`
+		BurstLimit       resource.Quantity `json:"burstLimit"`
 	}
 	IOLimits struct {
 		WriteBWPerSecond resource.Quantity `json:"writeBandwidthPerSecond"`

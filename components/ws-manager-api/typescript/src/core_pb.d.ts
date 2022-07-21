@@ -1262,6 +1262,7 @@ export enum WorkspaceFeatureFlag {
     FIXED_RESOURCES = 5,
     PERSISTENT_VOLUME_CLAIM = 7,
     PROTECTED_SECRETS = 8,
+    WORKSPACE_CLASS_LIMITING = 9,
 }
 
 export enum WorkspaceType {

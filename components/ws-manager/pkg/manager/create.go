@@ -380,17 +380,6 @@ func (m *Manager) createDefiniteWorkspacePod(startContext *startWorkspaceContext
 		annotations[customTimeoutAnnotation] = req.Spec.Timeout
 	}
 
-	limits := startContext.Class.Container.Limits
-	if limits != nil && limits.CPU != nil {
-		if limits.CPU.MinLimit != "" {
-			annotations[kubernetes.WorkspaceCpuLimitAnnotation] = limits.CPU.MinLimit
-		}
-
-		if limits.CPU.BurstLimit != "" {
-			annotations[kubernetes.WorkspaceCpuBurstLimitAnnotation] = limits.CPU.BurstLimit
-		}
-	}
-
 	for k, v := range req.Metadata.Annotations {
 		annotations[workspaceAnnotationPrefix+k] = v
 	}
@@ -577,7 +566,7 @@ func (m *Manager) createDefiniteWorkspacePod(startContext *startWorkspaceContext
 				}
 				cpuLimit = c.Resources.Limits.Cpu().String()
 			}
-			pod.Annotations[wsk8s.WorkspaceCpuLimitAnnotation] = cpuLimit
+			pod.Annotations[wsk8s.WorkspaceCpuMinLimitAnnotation] = cpuLimit
 
 		case api.WorkspaceFeatureFlag_NOOP:
 
@@ -621,6 +610,17 @@ func (m *Manager) createDefiniteWorkspacePod(startContext *startWorkspaceContext
 						},
 					}
 					c.Env[i] = env
+				}
+			}
+		case api.WorkspaceFeatureFlag_WORKSPACE_CLASS_LIMITING:
+			limits := startContext.Class.Container.Limits
+			if limits != nil && limits.CPU != nil {
+				if limits.CPU.MinLimit != "" {
+					annotations[kubernetes.WorkspaceCpuMinLimitAnnotation] = limits.CPU.MinLimit
+				}
+
+				if limits.CPU.BurstLimit != "" {
+					annotations[kubernetes.WorkspaceCpuBurstLimitAnnotation] = limits.CPU.BurstLimit
 				}
 			}
 
