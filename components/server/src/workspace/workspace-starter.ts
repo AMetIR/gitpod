@@ -789,6 +789,12 @@ export class WorkspaceStarter {
                     );
                 }
 
+                if (featureFlags.includes("persistent_volume_claim")) {
+                    if (workspaceClass === "g1-standard" || workspaceClass === "g1-large") {
+                        workspaceClass = workspaceClass + "-pvc";
+                    }
+                }
+
                 featureFlags = featureFlags.concat(["workspace_class_limiting"]);
             }
 
