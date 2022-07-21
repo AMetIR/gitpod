@@ -1,0 +1,54 @@
+// Copyright (c) 2022 Gitpod GmbH. All rights reserved.
+// Licensed under the GNU Affero General Public License (AGPL).
+// See License-AGPL.txt in the project root for license information.
+
+syntax = "proto3";
+
+package ide_metrics_api;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/gitpod-io/gitpod/ide-metrics/api";
+option java_package = "io.gitpod.ide_metrics.api";
+
+service MetricsService {
+    rpc ReportMetric(ReportMetricsRequest) returns (ReportMetricsResponse) {
+        option (google.api.http) = {
+            post: "/reportMetric/{name}",
+            body : "*"
+        };
+    }
+    rpc reportLog(ReportMetricsRequest) returns (ReportMetricsResponse) {
+        option (google.api.http) = {
+            post: "/reportLog"
+            body : "*"
+        };
+    }
+}
+
+message ReportMetricsRequest {
+    string name = 1;
+    map<string, string> labels = 2;
+}
+
+message ReportMetricsResponse {}
+
+enum LogLevel {
+    Unknown = 0;
+    Trace = 1;
+    Debug = 2;
+    Info = 3;
+    Warning = 4;
+    Error = 5;
+    Critical = 6;
+}
+
+message ReportLogRequest {
+    string workspaceId = 1;
+    string instanceId = 2;
+    string component = 3;
+    LogLevel logLevel = 4;
+    string content = 5;
+}
+
+message ReportLogResponse {}
