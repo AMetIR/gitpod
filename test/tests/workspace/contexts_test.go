@@ -14,8 +14,10 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
+	csapi "github.com/gitpod-io/gitpod/content-service/api"
 	"github.com/gitpod-io/gitpod/test/pkg/integration"
 	"github.com/gitpod-io/gitpod/test/pkg/integration/common"
+	wsmanapi "github.com/gitpod-io/gitpod/ws-manager/api"
 )
 
 type ContextTest struct {
@@ -123,13 +125,35 @@ func runContextTests(t *testing.T, tests []ContextTest) {
 						t.Fatal(err)
 					}
 
-					nfo, stopWS, err := integration.LaunchWorkspaceFromContextURL(ctx, test.ContextURL, username, api)
+					ws, err := integration.LaunchWorkspaceDirectly(ctx, api, integration.WithRequestModifier(func(w *wsmanapi.StartWorkspaceRequest) error {
+						w.Metadata.Owner = username
+						w.Spec.Initializer = &csapi.WorkspaceInitializer{
+							Spec: &csapi.WorkspaceInitializer_Git{
+								Git: &csapi.GitInitializer{
+									RemoteUri:  test.ContextURL,
+									TargetMode: csapi.CloneTargetMode_REMOTE_BRANCH,
+									CloneTaget: test.ExpectedBranch,
+									Config: &csapi.GitConfig{
+										Authentication: csapi.GitAuthMethod_NO_AUTH,
+									},
+								},
+							},
+						}
+						// w.Spec.FeatureFlags = test.FF
+						return nil
+					}))
 					if err != nil {
 						t.Fatal(err)
 					}
-					defer stopWS(false) // we do not wait for stopped here as it does not matter for this test case and speeds things up
 
-					rsa, closer, err := integration.Instrument(integration.ComponentWorkspace, "workspace", cfg.Namespace(), kubeconfig, cfg.Client(), integration.WithInstanceID(nfo.LatestInstance.ID))
+					defer func() {
+						err = integration.DeleteWorkspace(ctx, api, ws.Req.Id)
+						if err != nil {
+							t.Fatal(err)
+						}
+					}()
+
+					rsa, closer, err := integration.Instrument(integration.ComponentWorkspace, "workspace", cfg.Namespace(), kubeconfig, cfg.Client(), integration.WithInstanceID(ws.Req.Id))
 					if err != nil {
 						t.Fatal(err)
 					}
