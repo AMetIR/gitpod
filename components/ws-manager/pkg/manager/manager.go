@@ -164,10 +164,10 @@ func (m *Manager) Close() {
 }
 
 // StartWorkspace creates a new running workspace within the manager's cluster
-func (m *Manager) StartWorkspace(_ context.Context, req *api.StartWorkspaceRequest) (res *api.StartWorkspaceResponse, err error) {
+func (m *Manager) StartWorkspace(ctx context.Context, req *api.StartWorkspaceRequest) (res *api.StartWorkspaceResponse, err error) {
 	owi := log.LogContext(req.Metadata.Owner, req.Metadata.MetaId, req.Id, req.Metadata.GetProject(), req.Metadata.GetTeam())
 	clog := log.WithFields(owi)
-	span, ctx := tracing.FromContext(context.Background(), "StartWorkspace")
+	span, ctx := tracing.FromContext(ctx, "StartWorkspace")
 	tracing.LogRequestSafe(span, req)
 	tracing.ApplyOWI(span, owi)
 	defer tracing.FinishSpan(span, &err)
@@ -314,7 +314,7 @@ func (m *Manager) StartWorkspace(_ context.Context, req *api.StartWorkspaceReque
 		return nil, err
 	}
 
-	err = wait.PollWithContext(ctx, 100*time.Millisecond, 10*time.Minute, podRunning(m.Clientset, pod.Name, pod.Namespace))
+	err = wait.PollImmediateWithContext(ctx, 100*time.Millisecond, 10*time.Minute, podRunning(m.Clientset, pod.Name, pod.Namespace))
 	if err != nil {
 		return nil, xerrors.Errorf("workspace pod never reached Running state: %w", err)
 	}
@@ -326,7 +326,7 @@ func (m *Manager) StartWorkspace(_ context.Context, req *api.StartWorkspaceReque
 			return nil, xerrors.Errorf("unable to get workspace pod %s: %w", pod.Name, err)
 		}
 
-		err = wait.PollWithContext(ctx, 100*time.Millisecond, 5*time.Minute, pvcRunning(m.Clientset, pvc.Name, pvc.Namespace))
+		err = wait.PollImmediateWithContext(ctx, 100*time.Millisecond, 5*time.Minute, pvcRunning(m.Clientset, pvc.Name, pvc.Namespace))
 		if err != nil {
 			if startContext.VolumeSnapshot != nil && startContext.VolumeSnapshot.VolumeSnapshotName != "" {
 				m.eventRecorder.Eventf(pod, corev1.EventTypeWarning, "PersistentVolumeClaim", "PVC %q restore from volume snapshot %q failed %v", pvc.Name, startContext.VolumeSnapshot.VolumeSnapshotName, err)
